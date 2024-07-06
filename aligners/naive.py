@@ -26,7 +26,7 @@ def main(reference_file, reads_file):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python script.py reference.fasta reads.fasta")
+        print("Usage: python naive.py data/reference.fasta data/reads.fasta")
         sys.exit(1)
     
     reference_file = sys.argv[1]
