@@ -9,16 +9,18 @@ def generate_random_sequence(length):
 def generate_genome_with_introns_exons(num_exons, exon_length, intron_length):
     genome = ""
     exon_positions = []
+    transcript_ids = []
     for i in range(num_exons):
         exon = generate_random_sequence(exon_length)
         genome += exon
         exon_start = len(genome) - exon_length
         exon_end = len(genome)
         exon_positions.append((exon_start, exon_end))
+        transcript_ids.append(f"TRANSCRIPT_{i+1}")
         if i < num_exons - 1:
             intron = generate_random_sequence(intron_length).lower()
             genome += intron
-    return genome, exon_positions
+    return genome, exon_positions, transcript_ids
 
 def introduce_mismatches(seq, num_mismatches):
     seq_list = list(seq)
@@ -63,16 +65,30 @@ def generate_reads(genome, exon_positions, num_reads, read_length, max_mismatche
         reads.append(SeqRecord(Seq(read_seq_with_mismatches), id=read_id, description=description))
     return reads, spliced_count, unspliced_count
 
+def generate_transcripts(genome, exon_positions, transcript_ids):
+    transcripts = []
+    for (start, end), transcript_id in zip(exon_positions, transcript_ids):
+        transcript_seq = genome[start:end]
+        transcripts.append(SeqRecord(Seq(transcript_seq), id=transcript_id, description=""))
+    return transcripts
+
 def main():
     # Generate genome
     num_exons = 5
     exon_length = 200
     intron_length = 800
-    genome, exon_positions = generate_genome_with_introns_exons(num_exons, exon_length, intron_length)
+    genome, exon_positions, transcript_ids = generate_genome_with_introns_exons(num_exons, exon_length, intron_length)
     
     # Create reference.fasta
     with open("data/reference.fasta", "w") as f:
         SeqIO.write(SeqRecord(Seq(genome), id="ref", description=""), f, "fasta")
+    
+    # Generate transcriptome
+    transcripts = generate_transcripts(genome, exon_positions, transcript_ids)
+    
+    # Create transcriptome.fasta
+    with open("data/transcriptome.fasta", "w") as f:
+        SeqIO.write(transcripts, f, "fasta")
     
     # Generate reads
     num_reads = 100
@@ -89,7 +105,7 @@ def main():
     print(f"Generated {num_reads} reads of length {read_length}")
     print(f"Spliced reads: {spliced_count}, Unspliced reads: {unspliced_count}")
     print(f"Maximum mismatches per read: {max_mismatches}")
-    print("Files 'reference.fasta' and 'reads.fasta' have been created in the 'data' directory")
+    print("Files 'reference.fasta', 'transcriptome.fasta', and 'reads.fasta' have been created in the 'data' directory")
 
     # Verify spliced read
     spliced_read = next(read for read in reads if "-S-" in read.id)
@@ -110,6 +126,11 @@ def main():
     # Print a section of the reference genome to show exon/intron distinction
     print("\nSection of reference genome (showing exon/intron distinction):")
     print(genome[:500])  # Print the first 500 characters to show the pattern
+
+    # Print the first transcript
+    print("\nFirst transcript:")
+    print(f"Transcript ID: {transcripts[0].id}")
+    print(f"Transcript sequence: {transcripts[0].seq}")
 
 if __name__ == "__main__":
     main()
