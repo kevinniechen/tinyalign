@@ -6,48 +6,59 @@ def create_suffix_array(reference):
     suffixes = sorted(range(len(reference)), key=lambda i: reference[i:])
     return suffixes
 
-def binary_search(pattern, reference, suffix_array):
-    """Perform binary search on the suffix array."""
+def binary_search_prefix(pattern, reference, suffix_array):
+    """Perform binary search on the suffix array to find the longest prefix match."""
     left, right = 0, len(suffix_array) - 1
+    best_match_length = 0
+    best_match_position = -1
+
     while left <= right:
         mid = (left + right) // 2
         suffix_start = suffix_array[mid]
-        suffix = reference[suffix_start:suffix_start+len(pattern)]
-        if pattern == suffix[:len(pattern)]:
-            return mid
-        elif pattern < suffix[:len(pattern)]:
+        suffix = reference[suffix_start:]
+        
+        # Find the length of the matching prefix
+        match_length = 0
+        for a, b in zip(pattern, suffix):
+            if a != b:
+                break
+            match_length += 1
+        
+        # Update best match if necessary
+        if match_length > best_match_length:
+            best_match_length = match_length
+            best_match_position = suffix_start
+        
+        # Decide which half to search next
+        if pattern[:match_length+1] <= suffix[:match_length+1]:
             right = mid - 1
         else:
             left = mid + 1
-    return -1
+
+    return best_match_position, best_match_length
 
 def align_with_suffix_array(read, reference, suffix_array):
-    """Align the read using binary search on the suffix array."""
-    best_pos = -1
-    best_score = -1
-    read_length = len(read)
+    """Align the read using binary search on the suffix array for longest prefix matches."""
+    # Find the first match
+    first_pos, first_length = binary_search_prefix(read, reference, suffix_array)
     
-    index = binary_search(read, reference, suffix_array)
-    if index != -1:
-        best_pos = suffix_array[index]
-        best_score = read_length
-    else:
-        # If exact match not found, search for best partial match
-        left, right = 0, len(suffix_array) - 1
-        while left <= right:
-            mid = (left + right) // 2
-            suffix_start = suffix_array[mid]
-            suffix = reference[suffix_start:suffix_start+read_length]
-            score = sum(1 for i in range(min(read_length, len(suffix))) if read[i] == suffix[i])
-            if score > best_score or (score == best_score and suffix_start < best_pos):
-                best_score = score
-                best_pos = suffix_start
-            if read < suffix[:read_length]:
-                right = mid - 1
-            else:
-                left = mid + 1
+    # If there's a perfect match or no match at all, return
+    if first_length == len(read) or first_length == 0:
+        return [(first_pos, first_length)]
     
-    return best_pos, best_score
+    # Look for a second match starting from the mismatch
+    second_pos, second_length = binary_search_prefix(read[first_length:], reference, suffix_array)
+    
+    # Return the results
+    results = [(first_pos, first_length)]
+    if second_length > 0:
+        results.append((second_pos, second_length))
+    
+    return results
+
+def format_alignment(pos, length):
+    """Format a single alignment as (start-end)."""
+    return f"({pos:6d}-{pos+length-1:6d})"
 
 def main(reference_file, reads_file):
     # Read the reference genome
@@ -59,11 +70,15 @@ def main(reference_file, reads_file):
     print("Suffix array built.")
 
     # Process each read
-    with open(reads_file, "r") as reads:
-        for record in SeqIO.parse(reads, "fasta"):
-            read = str(record.seq)
-            pos, score = align_with_suffix_array(read, reference, suffix_array)
-            print(f"Read: {record.id}, Length: {len(read)}, Position: {pos}, Score: {score}")
+    for record in SeqIO.parse(reads_file, "fasta"):
+        read = str(record.seq)
+        alignments = align_with_suffix_array(read, reference, suffix_array)
+        
+        # Format the alignments
+        alignment_str = " ".join([format_alignment(pos, length) for pos, length in alignments])
+        alignment_str = alignment_str.ljust(30)  # Ensure space for up to 2 alignments
+        
+        print(f"{record.id:<10} len={len(read):<3} {alignment_str}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

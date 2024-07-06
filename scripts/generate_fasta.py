@@ -21,7 +21,18 @@ def generate_genome_with_introns_exons(num_exons, exon_length, intron_length):
             genome += intron
     return genome, exon_positions
 
-def generate_reads(genome, exon_positions, num_reads, read_length):
+def introduce_mismatches(seq, num_mismatches):
+    seq_list = list(seq)
+    positions = random.sample(range(len(seq)), num_mismatches)
+    mismatches = []
+    for pos in positions:
+        original = seq_list[pos]
+        new = random.choice([base for base in 'ACGT' if base != original])
+        seq_list[pos] = new
+        mismatches.append(f"{original}{pos+1}{new}")
+    return ''.join(seq_list), mismatches
+
+def generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches=1):
     reads = []
     spliced_count = 0
     unspliced_count = 0
@@ -32,16 +43,24 @@ def generate_reads(genome, exon_positions, num_reads, read_length):
             start2 = random.randint(exon2[0], exon2[1] - read_length // 2)
             read_seq = genome[start1:start1 + read_length // 2] + genome[start2:start2 + read_length // 2]
             description = f"exon1:{start1}-{start1+read_length//2},exon2:{start2}-{start2+read_length//2}"
-            read_id = f"read{i+1}-spliced"
+            read_type = "S"  # S for spliced
             spliced_count += 1
         else:  # unspliced read
             start = random.randint(0, len(genome) - read_length)
             read_seq = genome[start:start + read_length]
             description = f"pos:{start}-{start+read_length}"
-            read_id = f"read{i+1}-unspliced"
+            read_type = "U"  # U for unspliced
             unspliced_count += 1
         
-        reads.append(SeqRecord(Seq(read_seq), id=read_id, description=description))
+        # Introduce mismatches
+        num_mismatches = random.randint(0, max_mismatches)
+        read_seq_with_mismatches, mismatches = introduce_mismatches(read_seq, num_mismatches)
+        
+        # Create read ID with simplified mismatch information
+        mismatch_info = f"M{num_mismatches}" if num_mismatches > 0 else "M0"
+        read_id = f"R{i+1}-{read_type}-{mismatch_info}"
+        
+        reads.append(SeqRecord(Seq(read_seq_with_mismatches), id=read_id, description=description))
     return reads, spliced_count, unspliced_count
 
 def main():
@@ -57,8 +76,9 @@ def main():
     
     # Generate reads
     num_reads = 100
-    read_length = 100  # Changed back to 100
-    reads, spliced_count, unspliced_count = generate_reads(genome, exon_positions, num_reads, read_length)
+    read_length = 100
+    max_mismatches = 1
+    reads, spliced_count, unspliced_count = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
     
     # Create reads.fasta
     with open("data/reads.fasta", "w") as f:
@@ -68,10 +88,11 @@ def main():
     print(f"Exon length: {exon_length}, Intron length: {intron_length}")
     print(f"Generated {num_reads} reads of length {read_length}")
     print(f"Spliced reads: {spliced_count}, Unspliced reads: {unspliced_count}")
+    print(f"Maximum mismatches per read: {max_mismatches}")
     print("Files 'reference.fasta' and 'reads.fasta' have been created in the 'data' directory")
 
     # Verify spliced read
-    spliced_read = next(read for read in reads if "spliced" in read.id)
+    spliced_read = next(read for read in reads if "-S-" in read.id)
     parts = spliced_read.description.split(",")
     exon1_start, exon1_end = map(int, parts[0].split(":")[1].split("-"))
     exon2_start, exon2_end = map(int, parts[1].split(":")[1].split("-"))
@@ -83,10 +104,8 @@ def main():
     print(f"Exon 2 from reference: {genome[exon2_start:exon2_end]}")
     print(f"Combined exons: {genome[exon1_start:exon1_end] + genome[exon2_start:exon2_end]}")
     
-    if spliced_read.seq == genome[exon1_start:exon1_end] + genome[exon2_start:exon2_end]:
-        print("Verification successful: The spliced read correctly combines two exon sequences.")
-    else:
-        print("Verification failed: The spliced read does not match the expected exon sequences.")
+    mismatches = int(spliced_read.id.split("-")[-1][1])
+    print(f"Number of mismatches: {mismatches}")
 
     # Print a section of the reference genome to show exon/intron distinction
     print("\nSection of reference genome (showing exon/intron distinction):")
