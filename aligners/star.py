@@ -41,30 +41,16 @@ def align_with_suffix_array(read, reference, suffix_array, min_seed_length=10):
     """Align the read using binary search on the suffix array for longest prefix matches."""
     results = []
     start = 0
-    while start < len(read) - min_seed_length + 1:
+    while start < len(read):
         pos, length = binary_search_prefix(read[start:], reference, suffix_array)
         if length >= min_seed_length:
-            results.append((pos, length, start))
+            results.append((pos, length))
             start += length
         else:
             start += 1
+        if start + min_seed_length > len(read):
+            break
     return results
-
-def merge_close_alignments(alignments, max_gap=100):
-    """Merge alignments that are close to each other in the reference."""
-    if not alignments:
-        return []
-    
-    merged = [alignments[0]]
-    for current in alignments[1:]:
-        previous = merged[-1]
-        if current[0] - (previous[0] + previous[1]) <= max_gap:
-            # Merge the alignments
-            new_length = (current[0] + current[1]) - previous[0]
-            merged[-1] = (previous[0], new_length, previous[2])
-        else:
-            merged.append(current)
-    return merged
 
 def format_alignment(pos, length):
     """Format a single alignment as (pos:length)."""
@@ -72,7 +58,7 @@ def format_alignment(pos, length):
 
 def calculate_coverage(alignments, read_length):
     """Calculate the percentage of the read covered by alignments."""
-    covered_bases = sum(length for _, length, _ in alignments)
+    covered_bases = sum(length for _, length in alignments)
     coverage_percentage = (covered_bases / read_length) * 100
     return coverage_percentage
 
@@ -89,13 +75,12 @@ def main(reference_file, reads_file):
     for record in SeqIO.parse(reads_file, "fasta"):
         read = str(record.seq)
         alignments = align_with_suffix_array(read, reference, suffix_array)
-        merged_alignments = merge_close_alignments(alignments)
         
         # Calculate coverage
-        coverage = calculate_coverage(merged_alignments, len(read))
+        coverage = calculate_coverage(alignments, len(read))
         
         # Format the alignments
-        alignment_str = " ".join([format_alignment(pos, length) for pos, length, _ in merged_alignments])
+        alignment_str = " ".join([format_alignment(pos, length) for pos, length in alignments])
         alignment_str = alignment_str.ljust(40)  # Ensure space for up to 2 alignments
         
         print(f"{record.id:<10} len={len(read):<3} {alignment_str} coverage={coverage:.2f}%")
