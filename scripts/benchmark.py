@@ -1,22 +1,21 @@
 import time
 import subprocess
-import statistics
 
-def run_script(script_name, reference_file, reads_file, num_runs=5):
-    times = []
-    for _ in range(num_runs):
-        start_time = time.time()
-        subprocess.run(['python', f'aligners/{script_name}', reference_file, reads_file], 
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        end_time = time.time()
-        times.append(end_time - start_time)
+def run_script(script_name, reference_file, reads_file):
+    start_time = time.time()
+    result = subprocess.run(['python', f'aligners/{script_name}', reference_file, reads_file], 
+                            capture_output=True, text=True)
+    end_time = time.time()
+    execution_time = end_time - start_time
     
-    avg_time = statistics.mean(times)
-    std_dev = statistics.stdev(times) if len(times) > 1 else 0
+    print(f"{script_name} execution time: {execution_time:.4f} seconds")
     
-    print(f"{script_name} average execution time: {avg_time:.4f} seconds")
-    print(f"{script_name} standard deviation: {std_dev:.4f} seconds")
-    print(f"Individual run times: {', '.join([f'{t:.4f}' for t in times])}")
+    # Analyze the output
+    output_lines = result.stdout.split('\n')
+    spliced_reads = sum(1 for line in output_lines if 'Splice:' in line)
+    total_reads = sum(1 for line in output_lines if line.startswith('Read:'))
+    print(f"Spliced reads: {spliced_reads}/{total_reads}")
+    print(f"Output:\n{result.stdout}")
     print()
 
 def main():
