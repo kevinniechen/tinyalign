@@ -39,31 +39,32 @@ def binary_search_prefix(pattern, reference, suffix_array):
 
 def align_with_suffix_array(read, reference, suffix_array, min_seed_length=10):
     """Align the read using binary search on the suffix array for longest prefix matches."""
-    # Find the first match
-    first_pos, first_length = binary_search_prefix(read, reference, suffix_array)
-    
-    # If there's a perfect match or no match at all, return
-    if first_length == len(read):
-        return [(first_pos, first_length)] if first_length >= min_seed_length else []
-    elif first_length == 0:
+    results = []
+    start = 0
+    while start < len(read) - min_seed_length + 1:
+        pos, length = binary_search_prefix(read[start:], reference, suffix_array)
+        if length >= min_seed_length:
+            results.append((pos, length, start))
+            start += length
+        else:
+            start += 1
+    return results
+
+def merge_close_alignments(alignments, max_gap=100):
+    """Merge alignments that are close to each other in the reference."""
+    if not alignments:
         return []
     
-    # Look for a second match starting from the mismatch
-    results = []
-    if first_length >= min_seed_length:
-        results.append((first_pos, first_length))
-    
-    remaining_length = len(read) - first_length
-    for start in range(first_length, len(read) - min_seed_length + 1):
-        second_pos, second_length = binary_search_prefix(read[start:], reference, suffix_array)
-        if second_length >= min_seed_length:
-            results.append((second_pos, second_length))
-            break
-        remaining_length -= 1
-        if remaining_length < min_seed_length:
-            break
-    
-    return results
+    merged = [alignments[0]]
+    for current in alignments[1:]:
+        previous = merged[-1]
+        if current[0] - (previous[0] + previous[1]) <= max_gap:
+            # Merge the alignments
+            new_length = (current[0] + current[1]) - previous[0]
+            merged[-1] = (previous[0], new_length, previous[2])
+        else:
+            merged.append(current)
+    return merged
 
 def format_alignment(pos, length):
     """Format a single alignment as (pos:length)."""
@@ -71,7 +72,7 @@ def format_alignment(pos, length):
 
 def calculate_coverage(alignments, read_length):
     """Calculate the percentage of the read covered by alignments."""
-    covered_bases = sum(length for _, length in alignments)
+    covered_bases = sum(length for _, length, _ in alignments)
     coverage_percentage = (covered_bases / read_length) * 100
     return coverage_percentage
 
@@ -88,12 +89,13 @@ def main(reference_file, reads_file):
     for record in SeqIO.parse(reads_file, "fasta"):
         read = str(record.seq)
         alignments = align_with_suffix_array(read, reference, suffix_array)
+        merged_alignments = merge_close_alignments(alignments)
         
         # Calculate coverage
-        coverage = calculate_coverage(alignments, len(read))
+        coverage = calculate_coverage(merged_alignments, len(read))
         
         # Format the alignments
-        alignment_str = " ".join([format_alignment(pos, length) for pos, length in alignments])
+        alignment_str = " ".join([format_alignment(pos, length) for pos, length, _ in merged_alignments])
         alignment_str = alignment_str.ljust(40)  # Ensure space for up to 2 alignments
         
         print(f"{record.id:<10} len={len(read):<3} {alignment_str} coverage={coverage:.2f}%")
