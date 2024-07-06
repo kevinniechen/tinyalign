@@ -37,28 +37,38 @@ def binary_search_prefix(pattern, reference, suffix_array):
 
     return best_match_position, best_match_length
 
-def align_with_suffix_array(read, reference, suffix_array):
+def align_with_suffix_array(read, reference, suffix_array, min_seed_length=10):
     """Align the read using binary search on the suffix array for longest prefix matches."""
     # Find the first match
     first_pos, first_length = binary_search_prefix(read, reference, suffix_array)
     
     # If there's a perfect match or no match at all, return
-    if first_length == len(read) or first_length == 0:
-        return [(first_pos, first_length)]
+    if first_length == len(read):
+        return [(first_pos, first_length)] if first_length >= min_seed_length else []
+    elif first_length == 0:
+        return []
     
     # Look for a second match starting from the mismatch
     second_pos, second_length = binary_search_prefix(read[first_length:], reference, suffix_array)
     
     # Return the results
-    results = [(first_pos, first_length)]
-    if second_length > 0:
+    results = []
+    if first_length >= min_seed_length:
+        results.append((first_pos, first_length))
+    if second_length >= min_seed_length:
         results.append((second_pos, second_length))
     
     return results
 
 def format_alignment(pos, length):
-    """Format a single alignment as (start-end)."""
-    return f"({pos:6d}-{pos+length-1:6d})"
+    """Format a single alignment as (pos:length)."""
+    return f"(pos:{pos:6d}, len:{length:3d})"
+
+def calculate_coverage(alignments, read_length):
+    """Calculate the percentage of the read covered by alignments."""
+    covered_bases = sum(length for _, length in alignments)
+    coverage_percentage = (covered_bases / read_length) * 100
+    return coverage_percentage
 
 def main(reference_file, reads_file):
     # Read the reference genome
@@ -74,11 +84,14 @@ def main(reference_file, reads_file):
         read = str(record.seq)
         alignments = align_with_suffix_array(read, reference, suffix_array)
         
+        # Calculate coverage
+        coverage = calculate_coverage(alignments, len(read))
+        
         # Format the alignments
         alignment_str = " ".join([format_alignment(pos, length) for pos, length in alignments])
-        alignment_str = alignment_str.ljust(30)  # Ensure space for up to 2 alignments
+        alignment_str = alignment_str.ljust(40)  # Ensure space for up to 2 alignments
         
-        print(f"{record.id:<10} len={len(read):<3} {alignment_str}")
+        print(f"{record.id:<10} len={len(read):<3} {alignment_str} coverage={coverage:.2f}%")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

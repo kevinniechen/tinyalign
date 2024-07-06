@@ -3,21 +3,20 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-def generate_random_sequence(length, case='upper'):
-    seq = ''.join(random.choice('ACGT') for _ in range(length))
-    return seq.upper() if case == 'upper' else seq.lower()
+def generate_random_sequence(length):
+    return ''.join(random.choice('ACGT') for _ in range(length))
 
 def generate_genome_with_introns_exons(num_exons, exon_length, intron_length):
     genome = ""
     exon_positions = []
     for i in range(num_exons):
-        exon = generate_random_sequence(exon_length, 'upper')
+        exon = generate_random_sequence(exon_length)
         genome += exon
         exon_start = len(genome) - exon_length
         exon_end = len(genome)
         exon_positions.append((exon_start, exon_end))
         if i < num_exons - 1:
-            intron = generate_random_sequence(intron_length, 'lower')
+            intron = generate_random_sequence(intron_length).lower()
             genome += intron
     return genome, exon_positions
 
@@ -46,7 +45,8 @@ def generate_reads(genome, exon_positions, num_reads, read_length, max_mismatche
             read_type = "S"  # S for spliced
             spliced_count += 1
         else:  # unspliced read
-            start = random.randint(0, len(genome) - read_length)
+            exon = random.choice(exon_positions)
+            start = random.randint(exon[0], exon[1] - read_length)
             read_seq = genome[start:start + read_length]
             description = f"pos:{start}-{start+read_length}"
             read_type = "U"  # U for unspliced
