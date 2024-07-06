@@ -49,14 +49,19 @@ def align_with_suffix_array(read, reference, suffix_array, min_seed_length=10):
         return []
     
     # Look for a second match starting from the mismatch
-    second_pos, second_length = binary_search_prefix(read[first_length:], reference, suffix_array)
-    
-    # Return the results
     results = []
     if first_length >= min_seed_length:
         results.append((first_pos, first_length))
-    if second_length >= min_seed_length:
-        results.append((second_pos, second_length))
+    
+    remaining_length = len(read) - first_length
+    for start in range(first_length, len(read) - min_seed_length + 1):
+        second_pos, second_length = binary_search_prefix(read[start:], reference, suffix_array)
+        if second_length >= min_seed_length:
+            results.append((second_pos, second_length))
+            break
+        remaining_length -= 1
+        if remaining_length < min_seed_length:
+            break
     
     return results
 
