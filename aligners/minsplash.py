@@ -1,5 +1,6 @@
 import numpy as np
 from collections import defaultdict
+from scipy.stats import fisher_exact
 
 class MinSPLASH:
     def __init__(self):
@@ -39,10 +40,24 @@ class MinSPLASH:
         
         return table, items, samples
     
-    def perform_pvalue_test(self):
+    def perform_pvalue_test(self, anchor_table, target_table):
         """Perform p-value test on targets."""
-        # TODO: Implement p-value test
-        pass
+        anchor_counts, anchor_ids, sample_ids = anchor_table
+        target_counts, target_ids, _ = target_table
+        
+        results = []
+        for i, anchor in enumerate(anchor_ids):
+            for j, target in enumerate(target_ids):
+                pvalue = self._fisher_exact_test(anchor_counts[i], target_counts[j])
+                results.append((anchor, target, pvalue))
+        
+        return sorted(results, key=lambda x: x[2])
+    
+    def _fisher_exact_test(self, anchor_counts, target_counts):
+        """Perform Fisher's exact test for a single anchor-target pair."""
+        contingency_table = np.array([anchor_counts, target_counts])
+        _, pvalue = fisher_exact(contingency_table)
+        return pvalue
 
 # Test function
 def test_minsplash():
@@ -66,6 +81,12 @@ def test_minsplash():
     print("Anchors:", anchor_table[1])
     print("Targets:", target_table[1])
     print("Samples:", anchor_table[2])
+    
+    # Perform p-value test
+    pvalue_results = splash.perform_pvalue_test(anchor_table, target_table)
+    print("\nP-value test results (top 5):")
+    for anchor, target, pvalue in pvalue_results[:5]:
+        print(f"Anchor: {anchor}, Target: {target}, P-value: {pvalue:.6f}")
 
 if __name__ == "__main__":
     test_minsplash()
