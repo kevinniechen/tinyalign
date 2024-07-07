@@ -1,68 +1,68 @@
-from collections import defaultdict
+import unittest
+import sys
+import os
 
-def create_toy_data():
-    return {
-        "sample1": [
-            "AAAAABBBBBCCCCCDDDDDEEEEE",
-            "AAAAABBBBBDDDDDEEEEEFFFF",
-            "AAAAABBBBBCCCCCDDDDDEEEEE"
-        ],
-        "sample2": [
-            "AAAAABBBBBDDDDDEEEEEFFFF",
-            "AAAAABBBBBCCCCCDDDDDEEEEE",
-            "AAAAABBBBBDDDDDEEEEEFFFF"
-        ]
-    }
+# Add the parent directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-def find_targets(sequence, anchor_length, target_length, offset):
-    pairs = []
-    for i in range(len(sequence) - anchor_length - offset - target_length + 1):
-        anchor = sequence[i:i+anchor_length]
-        target = sequence[i+anchor_length+offset:i+anchor_length+offset+target_length]
-        pairs.append((anchor, target))
-    return pairs
+from splash import run_splash, count_targets
 
-def count_targets(samples, anchor_length, target_length, offset):
-    count_tables = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    for sample_name, sequences in samples.items():
-        for sequence in sequences:
-            pairs = find_targets(sequence, anchor_length, target_length, offset)
-            for anchor, target in pairs:
-                count_tables[anchor][target][sample_name] += 1
-    return count_tables
+class TestSplash(unittest.TestCase):
+    def setUp(self):
+        self.toy_data = {
+            "sample1": [
+                "AAAAABBBBBCCCCCDDDDDEEEEE",
+                "AAAAABBBBBDDDDDEEEEEFFFF",
+                "AAAAABBBBBCCCCCDDDDDEEEEE"
+            ],
+            "sample2": [
+                "AAAAABBBBBDDDDDEEEEEFFFF",
+                "AAAAABBBBBCCCCCDDDDDEEEEE",
+                "AAAAABBBBBDDDDDEEEEEFFFF"
+            ]
+        }
+        self.anchor_length = 5
+        self.target_length = 5
+        self.offset = 5
 
-def print_count_table(anchor, count_table):
-    print(f"Count table for anchor: {anchor}")
-    samples = sorted(set().union(*[set(counts.keys()) for counts in count_table.values()]))
-    print("Target\t" + "\t".join(samples))
-    for target, counts in count_table.items():
-        print(f"{target}\t" + "\t".join(str(counts.get(sample, 0)) for sample in samples))
+    def test_count_targets(self):
+        count_tables = count_targets(self.toy_data, self.anchor_length, self.target_length, self.offset)
+        
+        # Test the number of unique anchors
+        self.assertEqual(len(count_tables), 15, "Should have 15 unique anchors")
 
-def run_splash_test():
-    toy_data = create_toy_data()
-    anchor_length = 5
-    target_length = 5
-    offset = 5
+        # Test specific count tables
+        self.assertEqual(count_tables["AAAAA"], 
+                         {"CCCCC": {"sample1": 2, "sample2": 1},
+                          "DDDDD": {"sample1": 1, "sample2": 2}},
+                         "Incorrect count table for AAAAA")
 
-    print("Toy Data:")
-    for sample, sequences in toy_data.items():
-        print(f"{sample}:")
-        for seq in sequences:
-            print(f"  {seq}")
-    print()
+        self.assertEqual(count_tables["BBBBB"], 
+                         {"DDDDD": {"sample1": 2, "sample2": 1},
+                          "EEEEE": {"sample1": 1, "sample2": 2}},
+                         "Incorrect count table for BBBBB")
 
-    print(f"Parameters: anchor_length={anchor_length}, target_length={target_length}, offset={offset}")
-    print()
+        self.assertEqual(count_tables["CCCCC"], 
+                         {"EEEEE": {"sample1": 2, "sample2": 1}},
+                         "Incorrect count table for CCCCC")
 
-    print("Counting anchor-target pairs...")
-    count_tables = count_targets(toy_data, anchor_length, target_length, offset)
-    
-    print(f"\nTotal number of unique anchors: {len(count_tables)}")
-    
-    print("\nPrinting count tables for each anchor:")
-    for anchor, count_table in count_tables.items():
-        print_count_table(anchor, count_table)
-        print()
+    def test_run_splash(self):
+        # Capture the output of run_splash
+        import io
+        import sys
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        run_splash(self.toy_data, self.anchor_length, self.target_length, self.offset)
+        
+        sys.stdout = sys.__stdout__  # Reset redirect.
+        output = captured_output.getvalue()
 
-if __name__ == "__main__":
-    run_splash_test()
+        # Check if the output contains expected information
+        self.assertIn("Total number of unique anchors: 15", output)
+        self.assertIn("Count table for anchor: AAAAA", output)
+        self.assertIn("Count table for anchor: BBBBB", output)
+        self.assertIn("Count table for anchor: CCCCC", output)
+
+if __name__ == '__main__':
+    unittest.main()
