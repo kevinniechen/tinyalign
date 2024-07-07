@@ -118,9 +118,6 @@ def main(reference_file, reads_file):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python star.py data/reference.fasta data/reads.fasta")
+        print("Usage: python star.py <reference_file> <reads_file>")
         sys.exit(1)
-
-    reference_file = sys.argv[1]
-    reads_file = sys.argv[2]
-    main(reference_file, reads_file)
+    main(sys.argv[1], sys.argv[2])
