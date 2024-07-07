@@ -3,6 +3,7 @@ import numpy as np
 import sys
 from Bio import SeqIO
 
+
 def find_targets(sequence, anchor_length, target_length, offset):
     pairs = []
     for i in range(len(sequence) - anchor_length - offset - target_length + 1):
@@ -13,6 +14,7 @@ def find_targets(sequence, anchor_length, target_length, offset):
         pairs.append((anchor, target))
     return pairs
 
+
 def count_targets(samples, anchor_length, target_length, offset):
     count_tables = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     for sample_name, sequences in samples.items():
@@ -21,6 +23,7 @@ def count_targets(samples, anchor_length, target_length, offset):
             for anchor, target in pairs:
                 count_tables[anchor][target][sample_name] += 1
     return count_tables
+
 
 def print_count_table(anchor, count_table):
     print(f"Count table for anchor: {anchor}")
@@ -32,6 +35,7 @@ def print_count_table(anchor, count_table):
         print(
             f"{target}\t" + "\t".join(str(counts.get(sample, 0)) for sample in samples)
         )
+
 
 def calculate_pvalue(contingency_table, sample_coeffs, target_coeffs):
     # Ensure variation in coefficients
@@ -77,6 +81,7 @@ def calculate_pvalue(contingency_table, sample_coeffs, target_coeffs):
 
     return min(p_value, 1.0)
 
+
 def calculate_effect_size(contingency_table, sample_coeffs, target_coeffs):
     positive_samples = sample_coeffs > 0
     negative_samples = sample_coeffs < 0
@@ -97,6 +102,7 @@ def calculate_effect_size(contingency_table, sample_coeffs, target_coeffs):
     )
 
     return abs(positive_mean - negative_mean)
+
 
 def compute_statistics(contingency_table, num_random_trials=1000, random_seed=None):
     rng = np.random.default_rng(random_seed)
@@ -134,15 +140,29 @@ def compute_statistics(contingency_table, num_random_trials=1000, random_seed=No
         "effect_size": effect_size,
     }
 
-def main(reference_file, reads_file):
+def run_splash(samples, anchor_length, target_length, offset):
+    print("Counting anchor-target pairs...")
+    count_tables = count_targets(samples, anchor_length, target_length, offset)
+    
+    print(f"\nTotal number of unique anchors: {len(count_tables)}")
+    
+    print("\nPrinting count tables for each anchor:")
+    for anchor, count_table in count_tables.items():
+        print_count_table(anchor, count_table)
+        print()
+
+    return count_tables
+
+def main(reference_file, *sample_files):
     # Read reference sequence
     with open(reference_file, 'r') as f:
         reference = str(next(SeqIO.parse(f, 'fasta')).seq)
 
     # Read sample sequences
-    samples = {'sample1': []}
-    with open(reads_file, 'r') as f:
-        samples['sample1'] = [str(record.seq) for record in SeqIO.parse(f, 'fasta')]
+    samples = {}
+    for i, sample_file in enumerate(sample_files, 1):
+        with open(sample_file, 'r') as f:
+            samples[f'sample{i}'] = [str(record.seq) for record in SeqIO.parse(f, 'fasta')]
 
     # Set parameters
     anchor_length = 6
@@ -173,7 +193,8 @@ def main(reference_file, reads_file):
         print_count_table(anchor, count_table)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python splash.py <reference_file> <reads_file>")
+    if len(sys.argv) < 4:
+        print("Usage: python aligners/splash.py <reference_file> <sample1_file> <sample2_file> [sample3_file ...]")
         sys.exit(1)
-    main(sys.argv[1], sys.argv[2])
+    
+    main(*sys.argv[1:])

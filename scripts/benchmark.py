@@ -10,7 +10,7 @@ def run_script(script_name, aligner_type, **kwargs):
         result = subprocess.run(['python', f'aligners/{script_name}', kwargs['transcriptome_file'], kwargs['reads_file']], 
                                 capture_output=True, text=True)
     elif aligner_type == "sample_comparison":
-        result = subprocess.run(['python', f'aligners/{script_name}', kwargs['sample1_file'], kwargs['sample2_file']], 
+        result = subprocess.run(['python', f'aligners/{script_name}', kwargs['reference_file'], kwargs['sample1_file'], kwargs['sample2_file']], 
                                 capture_output=True, text=True)
     end_time = time.time()
     execution_time = end_time - start_time
