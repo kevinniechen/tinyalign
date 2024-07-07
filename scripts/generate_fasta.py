@@ -93,11 +93,17 @@ def main():
     with open(output_dir + "transcriptome.fasta", "w") as f:
         SeqIO.write(transcripts, f, "fasta")
     
-    # Generate reads for two samples (sample1 and sample2)
+    # Generate reads for reads.fasta (for kallisto)
     num_reads = 100
     read_length = 100
     max_mismatches = 1
+    reads, spliced_count, unspliced_count = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
     
+    # Create reads.fasta
+    with open(output_dir + "reads.fasta", "w") as f:
+        SeqIO.write(reads, f, "fasta")
+    
+    # Generate reads for two samples (sample1 and sample2)
     # Sample 1
     reads_sample1, spliced_count1, unspliced_count1 = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
     # Create reads_sample1.fasta
@@ -112,36 +118,13 @@ def main():
     
     print(f"Generated genome with {num_exons} exons and {num_exons - 1} introns")
     print(f"Exon length: {exon_length}, Intron length: {intron_length}")
-    print(f"Generated {num_reads * 2} reads of length {read_length} (for sample1 and sample2)")
+    print(f"Generated {num_reads} reads of length {read_length} for reads.fasta")
+    print(f"Spliced reads: {spliced_count}, Unspliced reads: {unspliced_count}")
+    print(f"Generated {num_reads} reads each for sample1 and sample2")
     print(f"Sample 1 - Spliced reads: {spliced_count1}, Unspliced reads: {unspliced_count1}")
-    print(f"Sample 2 - Spliced reads: {spliced_count2}, Unspliced reads: {spliced_count2}")
+    print(f"Sample 2 - Spliced reads: {spliced_count2}, Unspliced reads: {unspliced_count2}")
     print(f"Maximum mismatches per read: {max_mismatches}")
-    print("Files 'reference.fasta', 'transcriptome.fasta', 'reads_sample1.fasta', and 'reads_sample2.fasta' have been created in the 'data' directory")
-
-    # Verify spliced read (from sample1)
-    spliced_read = next(read for read in reads_sample1 if "-S-" in read.id)
-    parts = spliced_read.description.split(",")
-    exon1_start, exon1_end = map(int, parts[0].split(":")[1].split("-"))
-    exon2_start, exon2_end = map(int, parts[1].split(":")[1].split("-"))
-    
-    print("\nVerifying spliced read:")
-    print(f"Read ID: {spliced_read.id}")
-    print(f"Read sequence: {spliced_read.seq}")
-    print(f"Exon 1 from reference: {genome[exon1_start:exon1_end]}")
-    print(f"Exon 2 from reference: {genome[exon2_start:exon2_end]}")
-    print(f"Combined exons: {genome[exon1_start:exon1_end] + genome[exon2_start:exon2_end]}")
-    
-    mismatches = int(spliced_read.id.split("-")[-1][1])
-    print(f"Number of mismatches: {mismatches}")
-
-    # Print a section of the reference genome to show exon/intron distinction
-    print("\nSection of reference genome (showing exon/intron distinction):")
-    print(genome[:500])  # Print the first 500 characters to show the pattern
-
-    # Print the first transcript
-    print("\nFirst transcript:")
-    print(f"Transcript ID: {transcripts[0].id}")
-    print(f"Transcript sequence: {transcripts[0].seq}")
+    print("Files 'reference.fasta', 'transcriptome.fasta', 'reads.fasta', 'reads_sample1.fasta', and 'reads_sample2.fasta' have been created in the 'data' directory")
 
 if __name__ == "__main__":
     main()
