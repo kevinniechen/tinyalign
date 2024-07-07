@@ -73,6 +73,9 @@ def generate_transcripts(genome, exon_positions, transcript_ids):
     return transcripts
 
 def main():
+    # Paths for the output files
+    output_dir = "data/"
+    
     # Generate genome
     num_exons = 5
     exon_length = 200
@@ -80,35 +83,43 @@ def main():
     genome, exon_positions, transcript_ids = generate_genome_with_introns_exons(num_exons, exon_length, intron_length)
     
     # Create reference.fasta
-    with open("data/reference.fasta", "w") as f:
+    with open(output_dir + "reference.fasta", "w") as f:
         SeqIO.write(SeqRecord(Seq(genome), id="ref", description=""), f, "fasta")
     
     # Generate transcriptome
     transcripts = generate_transcripts(genome, exon_positions, transcript_ids)
     
     # Create transcriptome.fasta
-    with open("data/transcriptome.fasta", "w") as f:
+    with open(output_dir + "transcriptome.fasta", "w") as f:
         SeqIO.write(transcripts, f, "fasta")
     
-    # Generate reads
+    # Generate reads for two samples (sample1 and sample2)
     num_reads = 100
     read_length = 100
     max_mismatches = 1
-    reads, spliced_count, unspliced_count = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
     
-    # Create reads.fasta
-    with open("data/reads.fasta", "w") as f:
-        SeqIO.write(reads, f, "fasta")
-
+    # Sample 1
+    reads_sample1, spliced_count1, unspliced_count1 = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
+    # Create reads_sample1.fasta
+    with open(output_dir + "reads_sample1.fasta", "w") as f:
+        SeqIO.write(reads_sample1, f, "fasta")
+    
+    # Sample 2
+    reads_sample2, spliced_count2, unspliced_count2 = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
+    # Create reads_sample2.fasta
+    with open(output_dir + "reads_sample2.fasta", "w") as f:
+        SeqIO.write(reads_sample2, f, "fasta")
+    
     print(f"Generated genome with {num_exons} exons and {num_exons - 1} introns")
     print(f"Exon length: {exon_length}, Intron length: {intron_length}")
-    print(f"Generated {num_reads} reads of length {read_length}")
-    print(f"Spliced reads: {spliced_count}, Unspliced reads: {unspliced_count}")
+    print(f"Generated {num_reads * 2} reads of length {read_length} (for sample1 and sample2)")
+    print(f"Sample 1 - Spliced reads: {spliced_count1}, Unspliced reads: {unspliced_count1}")
+    print(f"Sample 2 - Spliced reads: {spliced_count2}, Unspliced reads: {spliced_count2}")
     print(f"Maximum mismatches per read: {max_mismatches}")
-    print("Files 'reference.fasta', 'transcriptome.fasta', and 'reads.fasta' have been created in the 'data' directory")
+    print("Files 'reference.fasta', 'transcriptome.fasta', 'reads_sample1.fasta', and 'reads_sample2.fasta' have been created in the 'data' directory")
 
-    # Verify spliced read
-    spliced_read = next(read for read in reads if "-S-" in read.id)
+    # Verify spliced read (from sample1)
+    spliced_read = next(read for read in reads_sample1 if "-S-" in read.id)
     parts = spliced_read.description.split(",")
     exon1_start, exon1_end = map(int, parts[0].split(":")[1].split("-"))
     exon2_start, exon2_end = map(int, parts[1].split(":")[1].split("-"))
