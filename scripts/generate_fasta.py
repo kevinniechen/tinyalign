@@ -33,6 +33,38 @@ def introduce_mismatches(seq, num_mismatches):
         mismatches.append(f"{original}{pos+1}{new}")
     return ''.join(seq_list), mismatches
 
+def generate_biased_reads(genome, exon_positions, num_reads, read_length, max_mismatches=1, splice_bias=0.5):
+    reads = []
+    spliced_count = 0
+    unspliced_count = 0
+    for i in range(num_reads):
+        if random.random() < splice_bias:  # Adjustable chance of spliced read
+            exon1, exon2 = sorted(random.sample(exon_positions, 2))
+            start1 = random.randint(exon1[0], exon1[1] - read_length // 2)
+            start2 = random.randint(exon2[0], exon2[1] - read_length // 2)
+            read_seq = genome[start1:start1 + read_length // 2] + genome[start2:start2 + read_length // 2]
+            description = f"exon1:{start1}-{start1+read_length//2},exon2:{start2}-{start2+read_length//2}"
+            read_type = "S"  # S for spliced
+            spliced_count += 1
+        else:  # unspliced read
+            exon = random.choice(exon_positions)
+            start = random.randint(exon[0], exon[1] - read_length)
+            read_seq = genome[start:start + read_length]
+            description = f"pos:{start}-{start+read_length}"
+            read_type = "U"  # U for unspliced
+            unspliced_count += 1
+        
+        # Introduce mismatches
+        num_mismatches = random.randint(0, max_mismatches)
+        read_seq_with_mismatches, mismatches = introduce_mismatches(read_seq, num_mismatches)
+        
+        # Create read ID with simplified mismatch information
+        mismatch_info = f"M{num_mismatches}" if num_mismatches > 0 else "M0"
+        read_id = f"R{i+1}-{read_type}-{mismatch_info}"
+        
+        reads.append(SeqRecord(Seq(read_seq_with_mismatches), id=read_id, description=description))
+    return reads, spliced_count, unspliced_count
+
 def generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches=1):
     reads = []
     spliced_count = 0
@@ -103,18 +135,19 @@ def main():
     with open(output_dir + "reads.fasta", "w") as f:
         SeqIO.write(reads, f, "fasta")
     
-    # Generate reads for two samples (sample1 and sample2)
-    # Sample 1
-    reads_sample1, spliced_count1, unspliced_count1 = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
+    # Generate reads for two samples (sample1 and sample2) with different biases
+    # Sample 1 - more spliced reads
+    reads_sample1, spliced_count1, unspliced_count1 = generate_biased_reads(genome, exon_positions, num_reads, read_length, max_mismatches, splice_bias=0.7)
     # Create reads_sample1.fasta
     with open(output_dir + "reads_sample1.fasta", "w") as f:
         SeqIO.write(reads_sample1, f, "fasta")
     
-    # Sample 2
-    reads_sample2, spliced_count2, unspliced_count2 = generate_reads(genome, exon_positions, num_reads, read_length, max_mismatches)
+    # Sample 2 - more unspliced reads
+    reads_sample2, spliced_count2, unspliced_count2 = generate_biased_reads(genome, exon_positions, num_reads, read_length, max_mismatches, splice_bias=0.3)
     # Create reads_sample2.fasta
     with open(output_dir + "reads_sample2.fasta", "w") as f:
         SeqIO.write(reads_sample2, f, "fasta")
+
     
     print(f"Generated genome with {num_exons} exons and {num_exons - 1} introns")
     print(f"Exon length: {exon_length}, Intron length: {intron_length}")

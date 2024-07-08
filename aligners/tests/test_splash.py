@@ -78,6 +78,8 @@ def test_splash_vs_chi_square(contingency_table, expected_relation):
     splash_p_value = splash_test(contingency_table)
     chi_square_p_value = traditional_chi_square_test(contingency_table)
     
+    print(f"SPLASH p-value: {splash_p_value}, Chi-square p-value: {chi_square_p_value}")
+    
     assert 0 <= splash_p_value <= 1, f"SPLASH p-value {splash_p_value} is not between 0 and 1"
     assert 0 <= chi_square_p_value <= 1, f"Chi-square p-value {chi_square_p_value} is not between 0 and 1"
     
@@ -94,4 +96,5 @@ def test_calculate_pvalue():
     target_coeffs = np.array([0, 1])
     
     p_value = calculate_pvalue(contingency_table, sample_coeffs, target_coeffs)
+    print(f"Calculated p-value: {p_value}")
     assert 0 <= p_value <= 1, f"Expected p-value between 0 and 1, but got {p_value}"
